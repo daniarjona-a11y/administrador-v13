@@ -61,8 +61,19 @@ export function useLeaderboard(): UseLeaderboardReturn {
       .catch((err) => {
         console.error('Error cargando ranking:', err);
 
-        const message =
-          err instanceof Error ? err.message : String(err);
+        let message = 'Error desconocido';
+
+        if (err instanceof Error) {
+          message = err.message;
+        } else if (typeof err === 'string') {
+          message = err;
+        } else {
+          try {
+            message = JSON.stringify(err);
+          } catch {
+            message = String(err);
+          }
+        }
 
         setError('No se pudo cargar la clasificación: ' + message);
       })
@@ -117,11 +128,19 @@ export function useLeaderboard(): UseLeaderboardReturn {
         !Number.isFinite(rank) ||
         !Number.isFinite(total)
       ) {
-        const message =
-          upsertError?.message ||
-          upsertError?.details ||
-          upsertError?.hint ||
-          'Supabase no devolvió un resultado válido al guardar la puntuación.';
+        let message = 'Supabase no devolvió un resultado válido.';
+
+        if (upsertError) {
+          if (upsertError.message) {
+            message = upsertError.message;
+          } else {
+            try {
+              message = JSON.stringify(upsertError);
+            } catch {
+              message = String(upsertError);
+            }
+          }
+        }
 
         setSubmission({
           status: 'error',
