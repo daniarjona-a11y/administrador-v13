@@ -53,9 +53,8 @@ export function useLeaderboard(): UseLeaderboardReturn {
       .then((data) => setRecords(data))
       .catch((err) => {
         console.error('Error cargando ranking:', err);
-        const message =
-          err instanceof Error ? err.message : JSON.stringify(err);
-        setError(`No se pudo cargar la clasificación: ${message}`);
+        const message = err instanceof Error ? err.message : String(err);
+        setError('No se pudo cargar la clasificación: ' + message);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -90,8 +89,8 @@ export function useLeaderboard(): UseLeaderboardReturn {
         },
       );
 
-      console.log('Resultado RPC upsert_global_record:', result);
-      console.error('Error RPC upsert_global_record:', upsertError);
+      console.log('Resultado RPC:', result);
+      console.error('Error RPC:', upsertError);
 
       const recordId = result?.id as string | undefined;
       const rank = Number(result?.rank);
