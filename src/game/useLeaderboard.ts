@@ -1,3 +1,4 @@
+```ts
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { GlobalRecord, ResultType, ScoreSubmission } from './types';
@@ -50,7 +51,12 @@ export function useLeaderboard(): UseLeaderboardReturn {
 
     void fetchTopRecords()
       .then((data) => setRecords(data))
-      .catch(() => setError('No se pudo cargar la clasificación.'))
+      .catch((err) => {
+        console.error('Error cargando ranking:', err);
+        const message =
+          err instanceof Error ? err.message : JSON.stringify(err);
+        setError(`No se pudo cargar la clasificación: ${message}`);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -74,36 +80,51 @@ export function useLeaderboard(): UseLeaderboardReturn {
         errorMessage: null,
       });
 
-      const { data: result, error: upsertError } = await supabase.rpc('upsert_global_record', {
-        p_company_name: companyName.trim(),
-        p_points: Math.round(points),
-        p_days: Math.max(1, Math.min(10, Math.round(daysSurvived))),
-        p_result_type: resultType,
-      });
+      const { data: result, error: upsertError } = await supabase.rpc(
+        'upsert_global_record',
+        {
+          p_company_name: companyName.trim(),
+          p_points: Math.round(points),
+          p_days: Math.max(1, Math.min(10, Math.round(daysSurvived))),
+          p_result_type: resultType,
+        },
+      );
+
+      console.log('Resultado RPC upsert_global_record:', result);
+      console.error('Error RPC upsert_global_record:', upsertError);
 
       const recordId = result?.id as string | undefined;
       const rank = Number(result?.rank);
       const total = Number(result?.total);
 
-      if (upsertError || !recordId || !Number.isFinite(rank) || !Number.isFinite(total)) {
-        const message = 'No se pudo sincronizar tu puntuación con el ranking global.';
+      if (
+        upsertError ||
+        !recordId ||
+        !Number.isFinite(rank) ||
+        !Number.isFinite(total)
+      ) {
+        const message =
+          upsertError?.message ||
+          upsertError?.details ||
+          upsertError?.hint ||
+          'Supabase no devolvió un resultado válido al guardar la puntuación.';
+
         setSubmission({
           status: 'error',
           globalPosition: null,
           totalRecords: null,
           errorMessage: message,
         });
+
         onError?.(message);
         return;
       }
 
-      // The RPC has already saved the score and calculated the exact global rank.
-      // Refresh the visible top 100 separately; a refresh failure does not undo the save.
       try {
         const freshRecords = await fetchTopRecords();
         setRecords(freshRecords);
-      } catch {
-        // Keep the previous visible leaderboard; the save itself succeeded.
+      } catch (err) {
+        console.error('La puntuación se guardó, pero falló la carga del ranking:', err);
       }
 
       setSubmission({
@@ -112,10 +133,19 @@ export function useLeaderboard(): UseLeaderboardReturn {
         totalRecords: total,
         errorMessage: null,
       });
+
       onSaved?.();
     },
     [],
   );
 
-  return { records, loading, error, submission, submitScore, refresh };
+  return {
+    records,
+    loading,
+    error,
+    submission,
+    submitScore,
+    refresh,
+  };
 }
+```
